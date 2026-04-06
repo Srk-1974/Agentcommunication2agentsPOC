@@ -7,12 +7,17 @@ function App() {
   const [inputText, setInputText] = useState('');
   const [provider, setProvider] = useState('openai');
   const [apiKey, setApiKey] = useState('');
+  const [backendUrl, setBackendUrl] = useState('http://localhost');
   const [activeProvider, setActiveProvider] = useState(null);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
-    const socketA = io('http://localhost:3004');
-    const socketB = io('http://localhost:3005');
+    const portA = 3004;
+    const portB = 3005;
+
+    const urlA = backendUrl.includes('localhost') ? `${backendUrl}:${portA}` : backendUrl;
+    const socketA = io(urlA);
+    const socketB = io(backendUrl.includes('localhost') ? `${backendUrl}:${portB}` : `${backendUrl}/b`);
 
     socketA.on('connect', () => setConnectedA(true));
     socketA.on('disconnect', () => setConnectedA(false));
@@ -38,7 +43,7 @@ function App() {
       socketA.disconnect();
       socketB.disconnect();
     };
-  }, []);
+  }, [backendUrl]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -49,9 +54,14 @@ function App() {
   const handleSaveConfig = async () => {
     if (!apiKey.trim()) return;
     try {
+      const portA = 3004;
+      const portB = 3005;
+      const urlA = backendUrl.includes('localhost') ? `${backendUrl}:${portA}` : backendUrl;
+      const urlB = backendUrl.includes('localhost') ? `${backendUrl}:${portB}` : `${backendUrl}/b`;
+
       await Promise.all([
-        fetch('http://localhost:3004/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, apiKey }) }),
-        fetch('http://localhost:3005/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, apiKey }) })
+        fetch(`${urlA}/config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, apiKey }) }),
+        fetch(`${urlB}/config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, apiKey }) })
       ]);
       setActiveProvider(provider);
       alert(`Successfully saved ${provider} API Key to both Agents!`);
@@ -64,9 +74,11 @@ function App() {
   const handleTrigger = async () => {
     if (!inputText.trim()) return;
     
-    // Send HTTP POST to Agent A to trigger a manual start
+    const portA = 3004;
+    const urlA = backendUrl.includes('localhost') ? `${backendUrl}:${portA}` : backendUrl;
+
     try {
-      await fetch('http://localhost:3004/trigger', {
+      await fetch(`${urlA}/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ msg: inputText, type: 'USER_INPUT' })
@@ -106,6 +118,14 @@ function App() {
             style={{padding: '0.4rem', border: '1px solid rgba(255,255,255,0.2)', marginRight: '0.5rem', width: '150px'}}
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
+          />
+          <input 
+            type="text" 
+            placeholder="http://localhost" 
+            className="input-field" 
+            style={{padding: '0.4rem', border: '1px solid rgba(255,255,255,0.2)', marginRight: '0.5rem', width: '150px'}}
+            value={backendUrl}
+            onChange={e => setBackendUrl(e.target.value)}
           />
           <button className="btn btn-primary" style={{padding: '0.4rem 1rem'}} onClick={handleSaveConfig}>Save Key</button>
 
