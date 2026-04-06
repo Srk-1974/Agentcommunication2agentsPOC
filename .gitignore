@@ -1,0 +1,8 @@
+node_modules/
+.env
+*.log
+logA.txt
+logB.txt
+err.txt
+gemini_err.txt
+dist/
