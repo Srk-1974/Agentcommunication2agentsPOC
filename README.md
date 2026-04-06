@@ -1,44 +1,58 @@
-# AI Multi-Agent System
+# 🤖 AI Multi-Agent System (POC)
 
-This repository contains two intelligent AI agents communicating in real-time, capable of dynamically switching between multiple LLM providers (OpenAI, Gemini, Grok, Sarvam). It also features a stunning, rich Web GUIDashboard written in React.
+This repository contains two independent, autonomous AI agents (Agent A and Agent B) that communicate in real-time via WebSockets. The system supports dynamic switching between **OpenAI**, **Gemini**, **Grok**, and **Sarvam**, and includes a built-in **🤖 Mock Mode** for testing without API keys.
 
-## Directory Structure
-- `/agents/` -> Node.js backend handling Agent A and Agent B.
-  - `agentA.js` -> Runs on port 3000.
-  - `agentB.js` -> Runs on port 3001.
-  - `llmAdapters.js` -> Pluggable abstraction layer for models.
-  - `.env` -> Environment configurations and keys.
-- `/dashboard/` -> React (Vite) Frontend handling the live real-time conversations.
+---
 
-## Setup Instructions
+## 🏗️ Architecture
+- **Agent A (Port 3004):** Node.js backend.
+- **Agent B (Port 3005):** Node.js backend.
+- **Dashboard (Port 5173):** React (Vite) frontend for real-time visualization.
+- **WebSocket:** Socket.IO for bidirectional communication between agents and UI.
 
-### 1. Configure Environment Variables
-Navigate to `./agents/.env` and insert your desired API keys. Set `LLM_PROVIDER` to your preferred network (e.g. `openai`, `gemini`, `grok`, `sarvam`).
+---
 
-```env
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk_...
-```
+## ⚡ Features
+- **Real-time Collaboration:** Watch two agents iterate on tasks together.
+- **Multi-LLM Support:** Built-in adapters for major LLM providers.
+- **Mock Mode:** Test immediately without any API keys or quota hit.
+- **Dynamic Config:** Update LLM providers and API keys directly from the dashboard.
+- **Persistent Storage:** Keys saved via the dashboard are automatically persisted to `.env`.
 
-### 2. Run Agents
-Open a terminal and run Agent A:
+---
+
+## 🚀 Setup & Execution
+
+### 1. Configure Environment
+1. Copy `agents/.env.example` to `agents/.env`.
+2. (Optional) Fill in your actual LLM API keys.
+
+### 2. Run the Backend Agents
+Open two terminals in the `agents` folder:
 ```bash
-cd agents
+# Terminal 1
 node agentA.js
-```
 
-Open a second terminal and run Agent B:
-```bash
-cd agents
+# Terminal 2
 node agentB.js
 ```
 
 ### 3. Run the Dashboard
-Open a third terminal, install if you haven't yet, and run the Vite dashboard:
+Open a terminal in the `dashboard` folder:
 ```bash
-cd dashboard
+npm install
 npm run dev
 ```
 
-### 4. Trigger the Simulation
-Open the Dashboard running at `http://localhost:5173`. Use the provided input box to inject a command (e.g., "Analyze the latest market updates"). Wait and observe how the two independent agent runtimes collaboratively iterate using your chosen LLMs!
+### 4. Start the POC
+1. Open your browser to `http://localhost:5173`.
+2. Select **🤖 Mock (No API Key)** from the dropdown and click **Save Key**.
+3. Type a message in the trigger box (e.g., *"Production database is offline!"*) and click **Send Trigger**.
+4. Observe the agents collaborating in real-time!
+
+---
+
+## 🛠️ Tech Stack
+- **Backend:** Node.js, Express, Socket.IO.
+- **Frontend:** React, Vite, CSS3 (Glassmorphism, Animations).
+- **AI Integrations:** axios-based REST adapters for OpenAI, Gemini, Grok, and Sarvam.
