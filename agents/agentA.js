@@ -224,12 +224,14 @@ app.get('/memory', (req, res) => res.json(memory));
 app.post('/config', (req, res) => {
     const { provider, apiKey, target } = req.body;
 
-    // Proxy config to Agent B if targeted OR broadcast to peer for safety
-    if (target === 'Agent B' || !target) {
-        if (peerSocket && peerSocket.connected) {
-            peerSocket.emit('peer_config_update', { provider, apiKey });
-            if (target === 'Agent B') return res.json({ success: true, relayed: true });
-        }
+    // BroadCast config to Agent B fallback
+    if (peerSocket && peerSocket.connected) {
+        peerSocket.emit('peer_config_update', { provider, apiKey });
+    }
+
+    // Proxy config to Agent B if explicitly targeted (for relayed response)
+    if (target === 'Agent B') {
+        return res.json({ success: true, relayed: true });
     }
 
     if (provider) process.env.LLM_PROVIDER = provider.toLowerCase();
