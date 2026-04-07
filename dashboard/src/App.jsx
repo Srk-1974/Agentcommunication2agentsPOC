@@ -84,6 +84,21 @@ function App() {
     }
   };
 
+  const handleReset = async () => {
+    const urlA = backendUrl.includes('localhost') ? `${backendUrl}:3004` : backendUrl;
+    try {
+      await fetch(`${urlA}/memory`, { 
+        method: 'DELETE', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: 'both' }) // Clear everything
+      });
+      setMessages([]);
+      alert('System Memory Purged. Collaboration halted.');
+    } catch (err) {
+      console.error('Reset error:', err);
+    }
+  };
+
   const formatTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
@@ -141,7 +156,7 @@ function App() {
             <h3>Gateway Endpoint</h3>
             <input type="text" className="input-styled" value={backendUrl} onChange={e => setBackendUrl(e.target.value)} />
           </div>
-
+          <button className="btn-save" style={{background: '#64748b', marginTop: '1rem'}} onClick={handleReset}>RESET OPS</button>
           <button className="btn-save" onClick={handleSaveConfig}>Sync Unit Config</button>
         </aside>
 

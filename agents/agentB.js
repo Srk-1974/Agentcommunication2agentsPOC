@@ -190,6 +190,12 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('peer_memory_clear', () => {
+        console.log(`[${AGENT_NAME}] Memory Purge Requested by peer.`);
+        memory = [];
+        processedEventIds.clear();
+    });
+
     socket.emit('memory_sync', memory);
 });
 
@@ -246,6 +252,13 @@ app.post('/config', (req, res) => {
         }
     }
     console.log(`[${AGENT_NAME}] Runtime Config Updated: Provider=${provider}`);
+    res.json({ success: true });
+});
+
+app.delete('/memory', (req, res) => {
+    memory = [];
+    processedEventIds.clear();
+    console.log(`[${AGENT_NAME}] Memory Purge Requested via API.`);
     res.json({ success: true });
 });
 

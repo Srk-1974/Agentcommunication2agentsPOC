@@ -263,6 +263,20 @@ app.post('/config', (req, res) => {
     res.json({ success: true });
 });
 
+app.delete('/memory', (req, res) => {
+    const { target } = req.body;
+    if (target === 'Agent B' || !target) {
+        if (peerSocket && peerSocket.connected) {
+            peerSocket.emit('peer_memory_clear');
+            if (target === 'Agent B') return res.json({ success: true, relayed: true });
+        }
+    }
+    memory = [];
+    processedEventIds.clear();
+    console.log(`[${AGENT_NAME}] Memory Purged.`);
+    res.json({ success: true });
+});
+
 server.listen(PORT, () => {
     console.log(`[${AGENT_NAME}] Server running on port ${PORT}`);
 });
