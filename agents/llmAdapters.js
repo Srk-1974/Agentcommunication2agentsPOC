@@ -45,12 +45,14 @@ async function geminiAdapter(prompt, context) {
 }
 
 async function grokAdapter(prompt, context) {
-    const combinedInput = prompt + '\n\nContext:\n' + JSON.stringify(context);
     const response = await axios.post(
-        'https://api.x.ai/v1/responses',
+        'https://api.x.ai/v1/chat/completions',
         {
-            model: 'grok-4.20-reasoning',
-            input: combinedInput
+            model: 'grok-2-latest',
+            messages: [
+                { role: 'system', content: prompt },
+                { role: 'user', content: JSON.stringify(context) }
+            ]
         },
         {
             headers: {
@@ -59,12 +61,7 @@ async function grokAdapter(prompt, context) {
             }
         }
     );
-    // Robust extraction since the exact return schema wasn't fully specified
-    return response.data.response || 
-           response.data.output || 
-           response.data.text || 
-           (response.data.choices && response.data.choices[0].message.content) || 
-           JSON.stringify(response.data);
+    return response.data.choices[0].message.content;
 }
 
 async function sarvamAdapter(prompt, context) {
@@ -139,8 +136,11 @@ async function callLLM(provider, prompt, context) {
                 throw new Error(`Unsupported LLM provider: ${provider}`);
         }
     } catch (error) {
-        console.error(`Error calling ${provider}:`, error.response ? error.response.data : error.message);
-        return null;
+        const errorMsg = error.response ? 
+            (error.response.data?.error?.message || JSON.stringify(error.response.data)) : 
+            error.message;
+        console.error(`Error calling ${provider}:`, errorMsg);
+        return `ERROR: ${errorMsg}`;
     }
 }
 

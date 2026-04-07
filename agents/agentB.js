@@ -49,20 +49,21 @@ async function handleIncomingEvent(event) {
     addMemory(event);
 
     const provider = process.env.LLM_PROVIDER || 'openai';
-    const systemPrompt = `You are an autonomous AI agent (${AGENT_NAME}) communicating with another AI agent.
+    const systemPrompt = `You are the SRE Specialist (Agent B), the technical lead for system reliability.
+You work with the Cloud Architect (Agent A).
 
 Analyze the incoming event and recent memory.
 Decide:
-- Is this event important?
+- Is this event important for system stability?
 - Should I respond?
-- What is the most meaningful response?
+- What is the most effective technical action?
 
 Rules:
-- Be concise
-- Avoid unnecessary replies
-- Prevent infinite loops
-- Respond only if value is added
-- You MUST output ONLY valid JSON format. Example: {"should_respond": true, "response_type": "MESSAGE", "msg": "Understood, proceeding."}
+- Be technical, concise, and focused on tactical metrics.
+- Identify errors, high latency, or resource saturation.
+- Avoid unnecessary replies.
+- Prevent infinite loops.
+- You MUST output ONLY valid JSON format. Example: {"should_respond": true, "response_type": "MITIGATION", "msg": "Detected memory spike. Throttling worker threads."}
 If you should not respond, return {"should_respond": false}`;
 
     const context = {
@@ -77,15 +78,25 @@ If you should not respond, return {"should_respond": false}`;
 
 
     console.log(`[${AGENT_NAME}] Calling LLM (${provider}) on event from ${event.source}...`);
+    
+    // Notify peer gateway to notify dashboard
+    if (peerSocket && peerSocket.connected) {
+        peerSocket.emit('agent_status', { agent: AGENT_NAME, status: 'THINKING', provider });
+    }
+
     const llmResponseText = await callLLM(provider, systemPrompt, context);
     
-    if (!llmResponseText) {
-        console.log(`[${AGENT_NAME}] LLM call failed or returned empty.`);
-        io.emit('dashboard_update', {
+    if (peerSocket && peerSocket.connected) {
+        peerSocket.emit('agent_status', { agent: AGENT_NAME, status: 'IDLE' });
+    }
+    
+    if (!llmResponseText || llmResponseText.startsWith('ERROR:')) {
+        console.log(`[${AGENT_NAME}] LLM call failed:`, llmResponseText);
+        addMemory({
             event_id: generateEventId(),
-            source: 'System Runtime',
+            source: `${AGENT_NAME} Runtime`,
             event_type: 'ERROR',
-            payload: { msg: `Error: The LLM (${provider.toUpperCase()}) failed to respond. Check API keys or console logs.` },
+            payload: { msg: `Error: The LLM (${provider.toUpperCase()}) failed to respond. ${llmResponseText || ''}` },
             timestamp: new Date().toISOString()
         });
         return;
@@ -97,9 +108,9 @@ If you should not respond, return {"should_respond": false}`;
         decision = JSON.parse(cleaned);
     } catch (e) {
         console.error(`[${AGENT_NAME}] Failed to parse LLM response:`, llmResponseText);
-        io.emit('dashboard_update', {
+        addMemory({
             event_id: generateEventId(),
-            source: 'System Runtime',
+            source: `${AGENT_NAME} Runtime`,
             event_type: 'ERROR',
             payload: { msg: `Failed to parse LLM JSON: ${llmResponseText.substring(0, 100)}...` },
             timestamp: new Date().toISOString()
@@ -117,23 +128,32 @@ If you should not respond, return {"should_respond": false}`;
             provider_used: provider
         };
         
-        console.log(`[${AGENT_NAME}] Replied:`, decision.msg);
-        
-        // IMPORTANT: Always add to memory FIRST - this triggers the proxy to Agent A dashboard
+        console.log(`[${AGENT_NAME}] Preparing reply:`, decision.msg);
         addMemory(outEvent);
         
+        const delay = 1000 + Math.random() * 2000;
         setTimeout(() => {
             if (peerSocket && peerSocket.connected) {
-                console.log(`[${AGENT_NAME}] Sending reply to Agent A gateway...`);
+                console.log(`[${AGENT_NAME}] Dispatching reply to Agent A gateway...`);
                 peerSocket.emit('peer_message', outEvent);
             } else {
-                console.log(`[${AGENT_NAME}] Peer not connected, emitting locally...`);
+                console.log(`[${AGENT_NAME}] Peer client not online, broadcasting to all linked sockets...`);
                 io.emit('peer_message', outEvent); 
             }
-        }, 1000 + Math.random() * 2000);
+        }, delay);
 
     } else {
-        console.log(`[${AGENT_NAME}] Decided not to respond.`);
+        console.log(`[${AGENT_NAME}] Decided not to respond. Reason: ${!decision ? 'No decision' : !decision.should_respond ? 'Should not respond' : 'Empty msg'}`);
+        // Optionally notify dashboard for transparency
+        if (provider !== 'mock') {
+            io.emit('dashboard_update', {
+                event_id: generateEventId(),
+                source: `${AGENT_NAME} Intelligence`,
+                event_type: 'INSIGHT',
+                payload: { msg: `Processed event: Decided no response is needed based on current context.` },
+                timestamp: new Date().toISOString()
+            });
+        }
     }
 }
 
@@ -153,10 +173,24 @@ function connectToPeer() {
 connectToPeer();
 
 io.on('connection', (socket) => {
-    socket.emit('memory_sync', memory);
     socket.on('peer_message', (event) => {
         handleIncomingEvent(event);
     });
+
+    socket.on('peer_config_update', (data) => {
+        console.log(`[${AGENT_NAME}] Received config update from Peer Gateway.`);
+        const { provider, apiKey } = data;
+        if (provider) process.env.LLM_PROVIDER = provider.toLowerCase();
+        if (apiKey) {
+            const p = (provider || process.env.LLM_PROVIDER || 'openai').toLowerCase();
+            if (p === 'openai') process.env.OPENAI_API_KEY = apiKey;
+            else if (p === 'gemini') process.env.GEMINI_API_KEY = apiKey;
+            else if (p === 'grok') process.env.GROK_API_KEY = apiKey;
+            else if (p === 'sarvam') process.env.SARVAM_API_KEY = apiKey;
+        }
+    });
+
+    socket.emit('memory_sync', memory);
 });
 
 app.post('/trigger', (req, res) => {

@@ -45,20 +45,21 @@ async function handleIncomingEvent(event) {
     addMemory(event);
 
     const provider = process.env.LLM_PROVIDER || 'openai';
-    const systemPrompt = `You are an autonomous AI agent (${AGENT_NAME}) communicating with another AI agent.
+    const systemPrompt = `You are the Cloud Architect (Agent A), the strategic lead in a multi-agent AI system.
+You work with a Site Reliability Engineer (Agent B).
 
 Analyze the incoming event and recent memory.
 Decide:
-- Is this event important?
+- Is this event important for system architecture or strategy?
 - Should I respond?
-- What is the most meaningful response?
+- What is the most tactical or strategic response?
 
 Rules:
-- Be concise
-- Avoid unnecessary replies
-- Prevent infinite loops
-- Respond only if value is added
-- You MUST output ONLY valid JSON format. Example: {"should_respond": true, "response_type": "MESSAGE", "msg": "Understood, proceeding."}
+- Be professional, authoritative, and strategic.
+- Provide high-level guidance or analysis.
+- Avoid unnecessary replies.
+- Prevent infinite loops.
+- You MUST output ONLY valid JSON format. Example: {"should_respond": true, "response_type": "STRATEGY", "msg": "Analyzing pattern. Proposing redirection of traffic to secondary cluster."}
 If you should not respond, return {"should_respond": false}`;
 
     const context = {
@@ -73,17 +74,24 @@ If you should not respond, return {"should_respond": false}`;
 
 
     console.log(`[${AGENT_NAME}] Calling LLM (${provider}) on event from ${event.source}...`);
+    
+    // Notify dashboard that agent is thinking
+    io.emit('agent_status', { agent: AGENT_NAME, status: 'THINKING', provider });
+
     const llmResponseText = await callLLM(provider, systemPrompt, context);
     
-    if (!llmResponseText) {
-        console.log(`[${AGENT_NAME}] LLM call failed or returned empty.`);
-        io.emit('dashboard_update', {
+    io.emit('agent_status', { agent: AGENT_NAME, status: 'IDLE' });
+    
+    if (!llmResponseText || llmResponseText.startsWith('ERROR:')) {
+        console.log(`[${AGENT_NAME}] LLM call failed:`, llmResponseText);
+        const errorPayload = { 
             event_id: generateEventId(),
-            source: 'System Runtime',
+            source: `${AGENT_NAME} Runtime`,
             event_type: 'ERROR',
-            payload: { msg: `Error: The LLM (${provider.toUpperCase()}) failed to respond. Check API keys or console logs.` },
+            payload: { msg: `Error: The LLM (${provider.toUpperCase()}) failed to respond. ${llmResponseText || ''}` },
             timestamp: new Date().toISOString()
-        });
+        };
+        io.emit('dashboard_update', errorPayload);
         return;
     }
 
@@ -162,6 +170,10 @@ io.on('connection', (socket) => {
         io.emit('dashboard_update', event);
     });
 
+    socket.on('agent_status', (data) => {
+        io.emit('agent_status', data);
+    });
+
     socket.on('peer_message', (event) => {
         console.log(`[${AGENT_NAME}] Received message from Peer over socket.`);
         handleIncomingEvent(event);
@@ -169,7 +181,23 @@ io.on('connection', (socket) => {
 });
 
 app.post('/trigger', (req, res) => {
-    const { msg, type } = req.body;
+    const { msg, type, target } = req.body;
+    
+    // If target is Agent B, proxy it
+    if (target === 'Agent B') {
+        if (peerSocket && peerSocket.connected) {
+            peerSocket.emit('peer_message', {
+                event_id: generateEventId(),
+                source: `${AGENT_NAME} (Relayed Trigger)`,
+                event_type: type || 'ALERT',
+                payload: { msg: msg || 'Manual trigger' },
+                timestamp: new Date().toISOString()
+            });
+            return res.json({ success: true, relayed: true });
+        }
+        return res.status(503).json({ success: false, error: 'Agent B not connected' });
+    }
+
     const provider = process.env.LLM_PROVIDER || 'system';
     const outEvent = {
         event_id: generateEventId(),
@@ -194,7 +222,16 @@ app.post('/trigger', (req, res) => {
 app.get('/memory', (req, res) => res.json(memory));
 
 app.post('/config', (req, res) => {
-    const { provider, apiKey } = req.body;
+    const { provider, apiKey, target } = req.body;
+
+    // Proxy config to Agent B if targeted OR broadcast to peer for safety
+    if (target === 'Agent B' || !target) {
+        if (peerSocket && peerSocket.connected) {
+            peerSocket.emit('peer_config_update', { provider, apiKey });
+            if (target === 'Agent B') return res.json({ success: true, relayed: true });
+        }
+    }
+
     if (provider) process.env.LLM_PROVIDER = provider.toLowerCase();
     
     if (apiKey) {
