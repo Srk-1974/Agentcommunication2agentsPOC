@@ -12,36 +12,33 @@ function App() {
   const chatEndRef = useRef(null);
 
   useEffect(() => {
-    const portA = 3004;
-    const portB = 3005;
-
-    const urlA = backendUrl.includes('localhost') ? `${backendUrl}:${portA}` : backendUrl;
+    // Single Gateway Architecture: Only talk to Agent A
+    const urlA = backendUrl.includes('localhost') ? `${backendUrl}:3004` : backendUrl;
     const socketA = io(urlA);
-    const socketB = io(backendUrl.includes('localhost') ? `${backendUrl}:${portB}` : `${backendUrl}/b`);
 
-    socketA.on('connect', () => setConnectedA(true));
+    socketA.on('connect', () => {
+      console.log('Connected to Gateway (Agent A)');
+      setConnectedA(true);
+    });
+
     socketA.on('disconnect', () => setConnectedA(false));
-
-    const handleUpdate = (event) => {
-      setMessages((prev) => {
-        if (prev.find((e) => e.event_id === event.event_id)) return prev;
-        const newMsg = [...prev, event];
-        return newMsg.slice(-20);
+    
+    socketA.on('dashboard_update', (event) => {
+      console.log('Received cloud update:', event);
+      setMessages(prev => {
+        if (prev.find(m => m.event_id === event.event_id)) return prev;
+        return [...prev, event].slice(-20);
       });
-      scrollToBottom();
-    };
-
-    socketA.on('memory_sync', (memory) => {
-      setMessages(memory);
       scrollToBottom();
     });
 
-    socketA.on('dashboard_update', handleUpdate);
-    socketB.on('dashboard_update', handleUpdate);
+    socketA.on('memory_sync', (history) => {
+      setMessages(history);
+      scrollToBottom();
+    });
 
     return () => {
       socketA.disconnect();
-      socketB.disconnect();
     };
   }, [backendUrl]);
 
@@ -54,28 +51,25 @@ function App() {
   const handleSaveConfig = async () => {
     if (!apiKey.trim()) return;
     try {
-      const portA = 3004;
-      const portB = 3005;
-      const urlA = backendUrl.includes('localhost') ? `${backendUrl}:${portA}` : backendUrl;
-      const urlB = backendUrl.includes('localhost') ? `${backendUrl}:${portB}` : `${backendUrl}/b`;
+      const urlA = backendUrl.includes('localhost') ? `${backendUrl}:3004` : backendUrl;
+      const urlB = backendUrl.includes('localhost') ? `${backendUrl}:3005` : backendUrl;
 
       await Promise.all([
         fetch(`${urlA}/config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, apiKey }) }),
         fetch(`${urlB}/config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, apiKey }) })
       ]);
       setActiveProvider(provider);
-      alert(`Successfully saved ${provider} API Key to both Agents!`);
-    } catch (e) {
-      console.error('Failed to save config:', e);
-      alert('Failed to save config to agents. Make sure they are running.');
+      alert(`Successfully saved ${provider} API Key!`);
+    } catch (err) {
+      console.error('Failed to save config:', err);
+      alert('Failed to update agent configuration. Check console.');
     }
   };
 
   const handleTrigger = async () => {
     if (!inputText.trim()) return;
     
-    const portA = 3004;
-    const urlA = backendUrl.includes('localhost') ? `${backendUrl}:${portA}` : backendUrl;
+    const urlA = backendUrl.includes('localhost') ? `${backendUrl}:3004` : backendUrl;
 
     try {
       await fetch(`${urlA}/trigger`, {
@@ -84,8 +78,9 @@ function App() {
         body: JSON.stringify({ msg: inputText, type: 'USER_INPUT' })
       });
       setInputText('');
-    } catch (e) {
-      console.error('Failed to trigger:', e);
+      scrollToBottom();
+    } catch (err) {
+      console.error('Failed to trigger agent:', err);
     }
   };
 
