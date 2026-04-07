@@ -137,6 +137,11 @@ function connectToPeer() {
         console.log(`[${AGENT_NAME}] Connected to peer ${PEER_URL}`);
     });
     
+    peerSocket.on('peer_dashboard_update', (event) => {
+        // PROXY Agent B's events to the dashboard
+        io.emit('dashboard_update', event);
+    });
+
     peerSocket.on('peer_message', (event) => {
         handleIncomingEvent(event);
     });

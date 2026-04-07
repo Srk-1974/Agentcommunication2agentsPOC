@@ -11,10 +11,9 @@ console.log('🚀 Starting Multi-Agent Cluster...');
 process.env.AGENT_A_PORT = PORT_A;
 process.env.AGENT_B_PORT = PORT_B;
 
-// Use the Render URL if available, otherwise fallback to localhost
-const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'http://localhost';
-process.env.AGENT_A_URL = `${RENDER_URL}:${PORT_A}`;
-process.env.AGENT_B_URL = `${RENDER_URL}:${PORT_B}`;
+// In a cluster/container, agents talk to each other on localhost
+process.env.AGENT_A_URL = `http://localhost:${PORT_A}`;
+process.env.AGENT_B_URL = `http://localhost:${PORT_B}`;
 
 // Fork both agents as separate processes within the same container
 fork(path.join(__dirname, 'agentA.js'));

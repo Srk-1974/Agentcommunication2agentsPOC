@@ -29,8 +29,12 @@ let peerSocket = null;
 function addMemory(event) {
     memory.push(event);
     if (memory.length > 10) memory.shift();
-    // Broadcast to dashboard
+    // Broadcast to locally connected dashboards
     io.emit('dashboard_update', event);
+    // ALSO forward to Agent A gateway for cloud visibility
+    if (peerSocket && peerSocket.connected) {
+        peerSocket.emit('peer_dashboard_update', event);
+    }
 }
 
 function generateEventId() {
