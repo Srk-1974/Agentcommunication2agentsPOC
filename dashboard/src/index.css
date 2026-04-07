@@ -167,7 +167,6 @@ body {
 }
 
 .btn-save {
-  margin-top: auto;
   background: var(--accent-primary);
   color: white;
   border: none;

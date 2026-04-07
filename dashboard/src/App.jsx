@@ -156,8 +156,11 @@ function App() {
             <h3>Gateway Endpoint</h3>
             <input type="text" className="input-styled" value={backendUrl} onChange={e => setBackendUrl(e.target.value)} />
           </div>
-          <button className="btn-save" style={{background: '#64748b', marginTop: '1rem'}} onClick={handleReset}>RESET OPS</button>
-          <button className="btn-save" onClick={handleSaveConfig}>Sync Unit Config</button>
+
+          <div style={{marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+            <button className="btn-save" style={{background: '#64748b'}} onClick={handleReset}>RESET OPS</button>
+            <button className="btn-save" onClick={handleSaveConfig}>Sync Unit Config</button>
+          </div>
         </aside>
 
         <section className="chat-viewport">
