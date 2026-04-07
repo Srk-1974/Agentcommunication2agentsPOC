@@ -116,12 +116,15 @@ If you should not respond, return {"should_respond": false}`;
         
         console.log(`[${AGENT_NAME}] Replied:`, decision.msg);
         
+        // IMPORTANT: Always add to memory FIRST - this triggers the proxy to Agent A dashboard
+        addMemory(outEvent);
+        
         setTimeout(() => {
-            addMemory(outEvent);
             if (peerSocket && peerSocket.connected) {
+                console.log(`[${AGENT_NAME}] Sending reply to Agent A gateway...`);
                 peerSocket.emit('peer_message', outEvent);
             } else {
-                console.log(`[${AGENT_NAME}] Peer not connected, broadcasting via local server...`);
+                console.log(`[${AGENT_NAME}] Peer not connected, emitting locally...`);
                 io.emit('peer_message', outEvent); 
             }
         }, 1000 + Math.random() * 2000);
