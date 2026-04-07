@@ -153,8 +153,17 @@ function connectToPeer() {
 connectToPeer();
 
 io.on('connection', (socket) => {
+    console.log(`[${AGENT_NAME}] New connection (likely Agent B or Dashboard)`);
     socket.emit('memory_sync', memory);
+    
+    // Listen for Agent B's dashboard events to proxy them to the UI
+    socket.on('peer_dashboard_update', (event) => {
+        console.log(`[${AGENT_NAME}] Proxying event from Peer to Dashboard:`, event.source);
+        io.emit('dashboard_update', event);
+    });
+
     socket.on('peer_message', (event) => {
+        console.log(`[${AGENT_NAME}] Received message from Peer over socket.`);
         handleIncomingEvent(event);
     });
 });

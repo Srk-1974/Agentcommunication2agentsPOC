@@ -118,7 +118,7 @@ function mockAdapter(prompt, context) {
     const pool = pools[type];
     const responseMsg = pool[Math.floor(Math.random() * pool.length)];
     
-    if (Math.random() < 0.15) return JSON.stringify({ should_respond: false });
+    if (Math.random() < 0.0) return JSON.stringify({ should_respond: false });
     return JSON.stringify({ should_respond: true, response_type: type, msg: responseMsg });
 }
 
