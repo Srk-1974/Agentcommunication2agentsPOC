@@ -70,8 +70,11 @@ If you should not respond, return {"should_respond": false}`;
         recent_memory: memory.slice(-3)  // Only last 3 events to save tokens
     };
 
-    // Throttle LLM calls to avoid rate limiting on free tiers
-    await new Promise(r => setTimeout(r, 5000));
+    // Throttle LLM calls only for real APIs; Mock should be instant
+    if (provider !== 'mock') {
+        await new Promise(r => setTimeout(r, 5000));
+    }
+
 
     console.log(`[${AGENT_NAME}] Calling LLM (${provider}) on event from ${event.source}...`);
     const llmResponseText = await callLLM(provider, systemPrompt, context);
