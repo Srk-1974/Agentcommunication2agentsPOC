@@ -7,7 +7,7 @@ function App() {
   const [inputText, setInputText] = useState('');
   const [provider, setProvider] = useState('openai');
   const [apiKey, setApiKey] = useState('');
-  const [backendUrl, setBackendUrl] = useState('http://localhost');
+  const [backendUrl, setBackendUrl] = useState('https://agentcommunication2agentspoc.onrender.com');
   const [activeProvider, setActiveProvider] = useState(null);
   const chatEndRef = useRef(null);
 
